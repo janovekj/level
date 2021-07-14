@@ -19,20 +19,53 @@ const getMessage = (points: number) =>
     ? "Terrible"
     : "Awful";
 
-const ResultsView = (props: { guesses: Guess[]; onRestart: VoidFunction }) => {
+const Scoreboard = (props: { guesses: Guess[]; onRestart: VoidFunction }) => {
   const guess = props.guesses[props.guesses.length - 1];
-  const points = getPoints(guess);
-  const message = getMessage(points);
+
+  const sortedGuesses = [...props.guesses].sort(
+    (a, b) => getPoints(a) - getPoints(b)
+  );
+
+  const maxScoresCount = 10;
+
+  const guessIndex = sortedGuesses.findIndex((g) => g.id === guess.id);
 
   return (
     <div className="flex justify-center pt-20">
       <div className="flex flex-col gap-12 w-80">
         <div className={"flex flex-col gap-8"}>
-          <div className="flex flex-col-reverse">
-            <h1 className="text-5xl">{message}</h1>
-            <p className="text-lg text-gray-700">
-              {guess.x.toFixed(3)}°, {guess.y.toFixed(3)}°
-            </p>
+          <div>
+            <ol className="text-xl list-decimal list-inside">
+              {sortedGuesses
+                .filter((_, idx) => idx < maxScoresCount)
+                .map((g) => {
+                  const points = getPoints(g);
+                  const message = getMessage(points);
+
+                  return g.id === guess.id ? (
+                    <li key={g.id} className="text-purple-600">
+                      {message} ({g.x.toFixed(3)}°, {g.y.toFixed(3)}
+                      °) 👈
+                    </li>
+                  ) : (
+                    <li key={g.id}>
+                      {message} ({g.x.toFixed(3)}°, {g.y.toFixed(3)}
+                      °)
+                    </li>
+                  );
+                })}
+            </ol>
+            {guessIndex >= maxScoresCount ? (
+              <div className="text-xl">
+                <p className="text-2xl tracking-wider text-center">...</p>
+                <p className="text-purple-600">
+                  {guessIndex + 1}. {getMessage(getPoints(guess))} (
+                  {guess.x.toFixed(3)}°,
+                  {guess.y.toFixed(3)}
+                  °) 👈
+                </p>
+              </div>
+            ) : null}
           </div>
           <button
             className="p-4 text-xl text-white bg-purple-600 rounded-md"
@@ -40,22 +73,6 @@ const ResultsView = (props: { guesses: Guess[]; onRestart: VoidFunction }) => {
           >
             Retry
           </button>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <h2 className="text-2xl">Your top 5 guesses</h2>
-          <ol className="text-lg list-decimal list-inside">
-            {[...props.guesses]
-              .sort((a, b) => getPoints(a) - getPoints(b))
-              .filter((_, idx) => idx < 5)
-              .map((g) => (
-                <li key={g.id}>
-                  {getMessage(getPoints(g))} ({g.x.toFixed(3)}°,{" "}
-                  {g.y.toFixed(3)}
-                  °)
-                </li>
-              ))}
-          </ol>
         </div>
       </div>
     </div>
@@ -97,10 +114,10 @@ export const App = () => {
         </button>
       )}
       {state.matches("reviewing") && (
-        <ResultsView
+        <Scoreboard
           guesses={state.context.guesses}
           onRestart={() => send("restarted")}
-        ></ResultsView>
+        ></Scoreboard>
       )}
       {state.matches("missing permissions") && (
         <p className="flex flex-col items-center justify-center w-screen h-screen gap-4 text-xl">
