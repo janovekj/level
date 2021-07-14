@@ -1,6 +1,9 @@
 import { assign, createMachine } from "xstate";
 import { v4 as uuidv4 } from "uuid";
 
+const isProd = import.meta.env.PROD;
+const isDev = import.meta.env.DEV;
+
 export interface Orientation {
   x: number;
   y: number;
@@ -21,7 +24,7 @@ export const orientationGuesserMachine = createMachine(
       guesses: [] as Guess[],
     },
     initial: "checking sensor API support",
-    entry: import.meta.env.DEV ? "set dummy orientation" : undefined,
+    entry: isDev ? "set dummy orientation" : undefined,
     states: {
       "checking sensor API support": {
         always: [
@@ -63,7 +66,7 @@ export const orientationGuesserMachine = createMachine(
             target: "restoring guesses",
           },
         },
-        after: import.meta.env.PROD
+        after: isProd
           ? {
               5000: "unsupported device",
             }
@@ -110,7 +113,7 @@ export const orientationGuesserMachine = createMachine(
   {
     actions: {
       // for dev purposes
-      ...(import.meta.env.DEV
+      ...(isDev
         ? {
             "set dummy orientation": assign({
               orientation: (_) => ({ x: 0.1, y: -0.2 }),
