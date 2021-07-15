@@ -9,6 +9,8 @@ const getMessage = (points: number) =>
     ? "Wow! Perfect!"
     : points < 0.1
     ? "Insanely good"
+    : points < 0.5
+    ? "Very good"
     : points < 1
     ? "Pretty good"
     : points < 2
