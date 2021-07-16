@@ -1,8 +1,6 @@
 import { useMachine } from "@xstate/react";
-import React, { useEffect } from "react";
+import React from "react";
 import { Guess, orientationGuesserMachine } from "./orientationGuesserMachine";
-
-const isDev = import.meta.env.DEV;
 
 const getPoints = (guess: Guess) => (Math.abs(guess.x) + Math.abs(guess.y)) / 2;
 
@@ -88,50 +86,28 @@ export const App = () => {
     devTools: true,
   });
 
-  useEffect(() => {
-    if (isDev) {
-      switch (state.value) {
-        case "checking sensor responsivity":
-          send({
-            type: "orientation changed",
-            //@ts-ignore
-            x: 0.1,
-            y: 0.2,
-          });
-        case "guessing":
-          send({
-            type: "orientation changed",
-            //@ts-ignore
-            x: 0.1,
-            y: 0.2,
-          });
-        // send({ type: "guessed" });
-      }
-    }
-  }, [state.value]);
-
   return (
     <div className="App">
-      {state.matches("prompting permission") && (
+      {state.hasTag("requesting permission") && (
         <div className="flex flex-col items-center justify-center h-screen gap-8 p-8">
           <h1 className="text-lg">
             This game needs access to the motion sensor API
           </h1>
           <button
             className="p-4 text-xl text-white bg-purple-600 rounded-md "
-            onClick={() => send("permission requested")}
+            onClick={() => send("system prompt requested")}
           >
             Request permission
           </button>
         </div>
       )}
-      {state.matches("requesting permission") && (
+      {state.matches("awaiting system prompt") && (
         <p className="flex flex-col items-center justify-center w-screen h-screen gap-4 text-xl">
           <span className="text-5xl">🙏</span>
           Requesting sensor permissions
         </p>
       )}
-      {state.matches("guessing") && (
+      {state.hasTag("guessing") && (
         <button
           className="flex items-center justify-center w-screen h-screen text-2xl text-white bg-purple-600"
           onClick={() => send("guessed")}
@@ -139,19 +115,19 @@ export const App = () => {
           <span>Press to guess!</span>
         </button>
       )}
-      {state.matches("reviewing") && (
+      {state.hasTag("reviewing") && (
         <Scoreboard
           guesses={state.context.guesses}
           onRestart={() => send("restarted")}
         ></Scoreboard>
       )}
-      {state.matches("missing permissions") && (
+      {state.hasTag("permission denied") && (
         <p className="flex flex-col items-center justify-center w-screen h-screen gap-4 text-xl">
           <span className="text-5xl">🙅‍♂️</span>
           Sensor permissions denied
         </p>
       )}
-      {state.matches("unsupported device") && (
+      {state.hasTag("unsupported device") && (
         <p className="flex flex-col items-center justify-center w-screen h-screen gap-4 text-xl">
           <span className="text-5xl">🤷‍♂️</span>
           Device doesn't support device motion events. Are you not using a

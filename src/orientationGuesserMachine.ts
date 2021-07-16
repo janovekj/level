@@ -58,88 +58,112 @@ export const orientationGuesserMachine = createMachine(
         always: [
           {
             cond: "is device motion API supported",
-            target: "checking permissions",
+            target: "supported device",
           },
           {
             target: "unsupported device",
           },
         ],
       },
-      "checking permissions": {
-        always: [
-          {
-            cond: "device requires permission",
-            target: "prompting permission",
+      "supported device": {
+        initial: "checking permissions",
+        states: {
+          "checking permissions": {
+            invoke: {
+              src: "check/request permission",
+            },
+            on: {
+              "missing permission reported": "requesting permission",
+              "permission granted": "permission granted",
+              "permission denied": "permission denied",
+            },
           },
-          { target: "checking sensor responsivity" },
-        ],
-      },
-      "prompting permission": {
-        on: {
-          "permission requested": "requesting permission",
-        },
-      },
-      "requesting permission": {
-        invoke: {
-          src: "request permission",
-        },
-        on: {
-          "permission granted": "restoring guesses",
-          "permission denied": "missing permissions",
-        },
-      },
-      "checking sensor responsivity": {
-        invoke: {
-          src: "measure orientation",
-        },
-        on: {
-          "orientation changed": {
-            cond: "is valid orientation",
-            target: "restoring guesses",
+          "requesting permission": {
+            tags: "requesting permission",
+            on: {
+              "system prompt requested": "awaiting system prompt",
+            },
+          },
+          "awaiting system prompt": {
+            tags: "awaiting system prompt",
+            invoke: {
+              src: "check/request permission",
+            },
+            on: {
+              "permission granted": "permission granted",
+              "permission denied": "permission denied",
+            },
+          },
+          "permission granted": {
+            initial: "testing sensor",
+            states: {
+              "testing sensor": {
+                invoke: {
+                  src: "measure orientation",
+                },
+                on: {
+                  "orientation changed": "sensor operational",
+                },
+                after: {
+                  5000: "sensor unresponsive",
+                },
+              },
+              "sensor operational": {
+                initial: "restoring guesses",
+                states: {
+                  "restoring guesses": {
+                    invoke: {
+                      src: "restore persisted guesses",
+                    },
+                    on: {
+                      "restored guesses": {
+                        target: "guessing",
+                        actions: "set guesses",
+                      },
+                    },
+                  },
+                  guessing: {
+                    tags: "guessing",
+                    invoke: {
+                      src: "measure orientation",
+                    },
+                    on: {
+                      "orientation changed": {
+                        cond: "is valid orientation",
+                        actions: "assign orientation change",
+                      },
+                      guessed: {
+                        cond: "has orientation",
+                        target: "reviewing",
+                        actions: "add guess",
+                      },
+                    },
+                  },
+                  reviewing: {
+                    tags: "reviewing",
+                    entry: "persist guesses",
+                    on: {
+                      restarted: {
+                        target: "guessing",
+                        actions: "clear orientation",
+                      },
+                    },
+                  },
+                },
+              },
+              "sensor unresponsive": {
+                tags: "unsupported device",
+              },
+            },
+          },
+          "permission denied": {
+            tags: "permission denied",
           },
         },
-        after: {
-          5000: "unsupported device",
-        },
       },
-      "restoring guesses": {
-        invoke: {
-          src: "restore persisted guesses",
-        },
-        on: {
-          "restored guesses": {
-            target: "guessing",
-            actions: "set guesses",
-          },
-        },
+      "unsupported device": {
+        tags: "unsupported device",
       },
-      guessing: {
-        invoke: {
-          src: "measure orientation",
-        },
-        on: {
-          "orientation changed": {
-            cond: "is valid orientation",
-            actions: "assign orientation change",
-          },
-          guessed: {
-            cond: "has orientation",
-            target: "reviewing",
-            actions: "add guess",
-          },
-        },
-      },
-      reviewing: {
-        entry: "persist guesses",
-        on: {
-          restarted: {
-            target: "guessing",
-            actions: "clear orientation",
-          },
-        },
-      },
-      "missing permissions": {},
-      "unsupported device": {},
     },
   },
   {
@@ -194,18 +218,30 @@ export const orientationGuesserMachine = createMachine(
           return () =>
             window.removeEventListener("deviceorientation", listener);
         },
-      "request permission": () => (send) => {
-        if (DeviceMotionEvent.requestPermission) {
-          DeviceMotionEvent.requestPermission().then((res) => {
-            switch (res) {
-              case "granted":
-                send({ type: "permission granted" });
-              case "denied":
-                send({ type: "permission denied" });
-              case "prompt":
-                send({ type: "permission prompted" });
-            }
-          });
+      "check/request permission": () => (send) => {
+        /* On iOS 13+, if DeviceMotionEvent.requestPermission is triggered by a user click,
+         * it will trigger a system prompt to allow/deny sensor permission. If it is _not_
+         * triggered by a user action, or have not previously been triggered by a user,
+         * it will reject, indicating that permissions are missing.
+         *
+         * https://dev.to/li/how-to-requestpermission-for-devicemotion-and-deviceorientation-events-in-ios-13-46g2
+         */
+
+        if (typeof DeviceMotionEvent.requestPermission === "function") {
+          DeviceMotionEvent.requestPermission()
+            .then((res) => {
+              switch (res) {
+                case "granted":
+                  send({ type: "permission granted" });
+                case "denied":
+                  send({ type: "permission denied" });
+                case "prompt":
+                  send({ type: "permission prompted" });
+              }
+            })
+            .catch(() => {
+              send({ type: "missing permission reported" });
+            });
         } else {
           send({ type: "permission granted" });
         }
