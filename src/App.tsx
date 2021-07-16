@@ -1,6 +1,8 @@
 import { useMachine } from "@xstate/react";
-import React from "react";
+import React, { useEffect } from "react";
 import { Guess, orientationGuesserMachine } from "./orientationGuesserMachine";
+
+const isDev = import.meta.env.DEV;
 
 const getPoints = (guess: Guess) => (Math.abs(guess.x) + Math.abs(guess.y)) / 2;
 
@@ -85,6 +87,28 @@ export const App = () => {
   const [state, send] = useMachine(orientationGuesserMachine, {
     devTools: true,
   });
+
+  useEffect(() => {
+    if (isDev) {
+      switch (state.value) {
+        case "checking sensor responsivity":
+          send({
+            type: "orientation changed",
+            //@ts-ignore
+            x: 0.1,
+            y: 0.2,
+          });
+        case "guessing":
+          send({
+            type: "orientation changed",
+            //@ts-ignore
+            x: 0.1,
+            y: 0.2,
+          });
+        // send({ type: "guessed" });
+      }
+    }
+  }, [state.value]);
 
   return (
     <div className="App">
