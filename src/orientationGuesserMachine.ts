@@ -1,4 +1,4 @@
-import { assign, createMachine } from "xstate";
+import { assign, createMachine, Sender } from "xstate";
 import { v4 as uuidv4 } from "uuid";
 
 const isProd = import.meta.env.PROD;
@@ -12,6 +12,40 @@ export interface Orientation {
 export interface Guess extends Orientation {
   id: string;
   timestamp: number;
+}
+
+const isOrientation = (
+  maybeOrientation: unknown
+): maybeOrientation is Orientation => {
+  const { x, y } = (maybeOrientation as Orientation) ?? {};
+  return typeof x === "number" && typeof y === "number";
+};
+
+function assertOrientation(
+  maybeOrientation: unknown
+): asserts maybeOrientation is Orientation {
+  if (!isOrientation(maybeOrientation)) {
+    throw new Error(
+      `Not a valid orientation: ${JSON.stringify(maybeOrientation)}`
+    );
+  }
+}
+
+function assertHasGuesses(
+  maybeWithGuesses: unknown
+): asserts maybeWithGuesses is { guesses: Guess[] } {
+  if (
+    !(
+      maybeWithGuesses &&
+      typeof maybeWithGuesses === "object" &&
+      "guesses" in maybeWithGuesses &&
+      Array.isArray((maybeWithGuesses as { guesses: unknown }).guesses)
+    )
+  ) {
+    throw new Error(
+      `Object doesn't have guesses: ${JSON.stringify(maybeWithGuesses)}`
+    );
+  }
 }
 
 const invoke = (service: string) => ({ src: service });
@@ -121,7 +155,7 @@ export const orientationGuesserMachine = createMachine(
           }
         : {}),
       "assign orientation change": assign({
-        orientation: (_, e) => ({ x: e.x, y: e.y }),
+        orientation: (_, e) => (assertOrientation(e), { x: e.x, y: e.y }),
       }),
       "add guess": assign({
         guesses: (ctx) =>
@@ -140,7 +174,7 @@ export const orientationGuesserMachine = createMachine(
         orientation: (_) => undefined,
       }),
       "set guesses": assign({
-        guesses: (_, e) => e.guesses,
+        guesses: (_, e) => (assertHasGuesses(e), e.guesses),
       }),
       "persist guesses": (ctx) => {
         localStorage.setItem("guesses", JSON.stringify(ctx.guesses));
@@ -149,23 +183,27 @@ export const orientationGuesserMachine = createMachine(
     guards: {
       "is device motion API supported": () => !!DeviceMotionEvent,
       "has orientation": (ctx) => !!ctx.orientation,
-      "is valid orientation": (_, event) => event.x != null && event.y != null,
+      "is valid orientation": (_, event) => isOrientation(event),
       "device requires permission": () =>
         !!DeviceMotionEvent &&
         typeof DeviceMotionEvent.requestPermission === "function",
     },
     services: {
-      "measure orientation": () => (send) => {
-        const listener = (event: DeviceOrientationEvent) => {
-          send({
-            type: "orientation changed",
-            x: event.beta,
-            y: event.gamma,
-          });
-        };
-        window.addEventListener("deviceorientation", listener);
-        return () => window.removeEventListener("deviceorientation", listener);
-      },
+      "measure orientation":
+        () => (send: Sender<{ type: "orientation changed" } & Orientation>) => {
+          const listener = (event: DeviceOrientationEvent) => {
+            if (event.beta != null && event.gamma != null) {
+              send({
+                type: "orientation changed",
+                x: event.beta,
+                y: event.gamma,
+              });
+            }
+          };
+          window.addEventListener("deviceorientation", listener);
+          return () =>
+            window.removeEventListener("deviceorientation", listener);
+        },
       "request permission": () => (send) => {
         if (DeviceMotionEvent.requestPermission) {
           DeviceMotionEvent.requestPermission().then((res) => {
@@ -182,10 +220,12 @@ export const orientationGuesserMachine = createMachine(
           send({ type: "permission granted" });
         }
       },
-      "restore persisted guesses": () => (send) => {
-        const guesses = JSON.parse(localStorage.getItem("guesses") ?? "[]");
-        send({ type: "restored guesses", guesses });
-      },
+      "restore persisted guesses":
+        () =>
+        (send: Sender<{ type: "restored guesses"; guesses: Guess[] }>) => {
+          const guesses = JSON.parse(localStorage.getItem("guesses") ?? "[]");
+          send({ type: "restored guesses", guesses });
+        },
     },
   }
 );
