@@ -112,7 +112,9 @@ export const App = () => {
           className="flex items-center justify-center w-screen h-screen text-2xl text-white bg-purple-600"
           onClick={() => send("guessed")}
         >
-          <span>Press to guess!</span>
+          <span>
+            Hold the device as level as you can, and press anywhere to guess!
+          </span>
         </button>
       )}
       {state.hasTag("reviewing") && (
