@@ -133,8 +133,7 @@ export const App = () => {
       {state.hasTag("unsupported device") && (
         <p className="flex flex-col items-center justify-center w-screen h-screen gap-4 text-xl">
           <span className="text-5xl">🤷‍♂️</span>
-          Device doesn't support device motion events. Are you not using a
-          mobile device?
+          Your device/browser doesn't appear to support motion sensor usage
         </p>
       )}
     </div>
