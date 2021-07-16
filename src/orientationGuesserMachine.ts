@@ -45,8 +45,6 @@ function assertHasGuesses(
   }
 }
 
-const invoke = (service: string) => ({ src: service });
-
 export const orientationGuesserMachine = createMachine(
   {
     id: "orientationGuesser",
@@ -82,14 +80,18 @@ export const orientationGuesserMachine = createMachine(
         },
       },
       "requesting permission": {
-        invoke: invoke("request permission"),
+        invoke: {
+          src: "request permission",
+        },
         on: {
           "permission granted": "restoring guesses",
           "permission denied": "missing permissions",
         },
       },
       "checking sensor responsivity": {
-        invoke: invoke("measure orientation"),
+        invoke: {
+          src: "measure orientation",
+        },
         on: {
           "orientation changed": {
             cond: "is valid orientation",
@@ -101,7 +103,9 @@ export const orientationGuesserMachine = createMachine(
         },
       },
       "restoring guesses": {
-        invoke: invoke("restore persisted guesses"),
+        invoke: {
+          src: "restore persisted guesses",
+        },
         on: {
           "restored guesses": {
             target: "guessing",
@@ -110,7 +114,9 @@ export const orientationGuesserMachine = createMachine(
         },
       },
       guessing: {
-        invoke: invoke("measure orientation"),
+        invoke: {
+          src: "measure orientation",
+        },
         on: {
           "orientation changed": {
             cond: "is valid orientation",
