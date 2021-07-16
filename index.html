@@ -15,8 +15,32 @@
         font-family: "Gill Sans", "Gill Sans MT", Calibri, "Trebuchet MS",
           sans-serif;
       }
+
+      #root {
+        width: 100vw;
+        height: 100vh;
+      }
+
+      #github {
+        position: fixed;
+        width: 32px;
+        top: 2px;
+        right: 2px;
+        opacity: 0.5;
+      }
+
+      #github:hover {
+        opacity: 1;
+      }
     </style>
     <div id="root"></div>
+    <a
+      id="github"
+      target="_blank"
+      noreferrer
+      href="https://github.com/janovekj/level"
+      ><img width="32" src="./github.png" alt="Github logo - link to repo"
+    /></a>
     <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>
