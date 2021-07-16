@@ -34,7 +34,7 @@ const Scoreboard = (props: { guesses: Guess[]; onRestart: VoidFunction }) => {
 
   return (
     <div className="flex justify-center pt-20">
-      <div className="flex flex-col gap-12 w-80">
+      <div className="flex flex-col w-80">
         <div className={"flex flex-col gap-8"}>
           <div>
             <ol className="text-xl list-decimal list-inside">
